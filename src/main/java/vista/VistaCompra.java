@@ -26,7 +26,7 @@ public class VistaCompra extends JFrame implements Observador {
     private final IConsultaModelo modelo;
     private final ControladorCompraProducto controlador;
 
-    private final JComboBox<ProductoDTO> selectorProductos;
+    private final JList<ProductoDTO> selectorProductos;
     private final JSpinner selectorCantidad;
     private final JTextArea areaCompra;
     private final JTextField campoTarjeta;
@@ -50,11 +50,35 @@ public class VistaCompra extends JFrame implements Observador {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        // Panel superior: catálogo y selección de productos.
-        JPanel panelCatalogo = new JPanel(new FlowLayout());
+        // Panel central: catálogo a la izquierda y compra a la derecha.
+        JPanel panelCentral = new JPanel(new GridLayout(1, 2, 12, 0));
+        panelCentral.setBorder(
+                BorderFactory.createEmptyBorder(10, 15, 10, 15)
+        );
 
-        selectorProductos = new JComboBox<>();
-        selectorProductos.setPreferredSize(new Dimension(240, 30));
+        // Zona izquierda: catálogo de productos.
+
+        // Zona izquierda: catálogo interactivo de productos.
+        JPanel panelIzquierdo = new JPanel(new BorderLayout(5, 10));
+        panelIzquierdo.setBorder(
+                BorderFactory.createTitledBorder("Catálogo de productos")
+        );
+
+        // El cliente selecciona directamente un producto de la lista.
+        selectorProductos = new JList<>();
+        selectorProductos.setSelectionMode(
+                ListSelectionModel.SINGLE_SELECTION
+        );
+
+        selectorProductos.setVisibleRowCount(6);
+
+        panelIzquierdo.add(
+                new JScrollPane(selectorProductos),
+                BorderLayout.CENTER
+        );
+
+        // Controles para indicar cuántas unidades se desean comprar.
+        JPanel panelSeleccion = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
         selectorCantidad = new JSpinner(
                 new SpinnerNumberModel(1, 1, 100, 1)
@@ -62,19 +86,30 @@ public class VistaCompra extends JFrame implements Observador {
 
         JButton botonAgregar = new JButton("Agregar producto");
 
-        panelCatalogo.add(new JLabel("Producto:"));
-        panelCatalogo.add(selectorProductos);
-        panelCatalogo.add(new JLabel("Cantidad:"));
-        panelCatalogo.add(selectorCantidad);
-        panelCatalogo.add(botonAgregar);
+        panelSeleccion.add(new JLabel("Cantidad:"));
+        panelSeleccion.add(selectorCantidad);
+        panelSeleccion.add(botonAgregar);
 
-        add(panelCatalogo, BorderLayout.NORTH);
+        panelIzquierdo.add(panelSeleccion, BorderLayout.SOUTH);
 
-        // Panel central: productos seleccionados.
+        // Zona derecha: productos seleccionados.
+        JPanel panelDerecho = new JPanel(new BorderLayout(5, 5));
+        panelDerecho.setBorder(
+                BorderFactory.createTitledBorder("Productos seleccionados")
+        );
+
         areaCompra = new JTextArea();
         areaCompra.setEditable(false);
 
-        add(new JScrollPane(areaCompra), BorderLayout.CENTER);
+        panelDerecho.add(
+                new JScrollPane(areaCompra),
+                BorderLayout.CENTER
+        );
+
+        panelCentral.add(panelIzquierdo);
+        panelCentral.add(panelDerecho);
+
+        add(panelCentral, BorderLayout.CENTER);
 
         // Panel inferior: consulta de tarjeta y comprobante.
         JPanel panelInferior = new JPanel(new BorderLayout(5, 5));
@@ -120,15 +155,24 @@ public class VistaCompra extends JFrame implements Observador {
         setVisible(true);
     }
 
+
     /**
-     * Obtiene los productos disponibles y llena el selector.
+     * Obtiene los productos del modelo y los presenta
+     * en una lista que permite seleccionar uno de ellos.
      */
     private void cargarCatalogo() {
+
+        DefaultListModel<ProductoDTO> listaProductos =
+                new DefaultListModel<>();
+
         for (ProductoDTO producto : modelo.obtenerProductos()) {
-            selectorProductos.addItem(producto);
+            listaProductos.addElement(producto);
         }
 
-        selectorProductos.setRenderer(new DefaultListCellRenderer() {
+        selectorProductos.setModel(listaProductos);
+
+        // Mostramos el nombre y precio en lugar del record completo.
+        selectorProductos.setCellRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(
                     JList<?> lista, Object valor, int indice,
@@ -147,6 +191,11 @@ public class VistaCompra extends JFrame implements Observador {
                 );
             }
         });
+
+        // Seleccionamos el primer producto al iniciar la ventana.
+        if (!listaProductos.isEmpty()) {
+            selectorProductos.setSelectedIndex(0);
+        }
     }
 
     /**
@@ -154,8 +203,7 @@ public class VistaCompra extends JFrame implements Observador {
      */
     private void agregarProducto() {
         try {
-            ProductoDTO producto =
-                    (ProductoDTO) selectorProductos.getSelectedItem();
+            ProductoDTO producto = selectorProductos.getSelectedValue();
 
             if (producto == null) {
                 return;
@@ -230,7 +278,6 @@ public class VistaCompra extends JFrame implements Observador {
         // Construimos el resumen de la compra.
         StringBuilder resumen = new StringBuilder();
 
-        resumen.append("PRODUCTOS SELECCIONADOS\n");
         resumen.append("----------------------------------------\n");
 
         if (detalles.isEmpty()) {
@@ -301,7 +348,7 @@ public class VistaCompra extends JFrame implements Observador {
 
         } else {
             resultado.append(
-                    "Ingresa una tarjeta ficticia para consultar sus datos."
+                    "Ingresa el número de tarjeta para consultar sus datos."
             );
         }
 
